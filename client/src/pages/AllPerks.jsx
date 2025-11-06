@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 
@@ -43,7 +43,6 @@ export default function AllPerks() {
     
     // Update state with unique merchants
     setUniqueMerchants(unique)
-    
     // This effect depends on [perks], so it re-runs whenever perks changes
   }, [perks]) // Dependency: re-run when perks array changes
 
@@ -80,6 +79,34 @@ export default function AllPerks() {
       setLoading(false)
     }
   }
+
+  // ==================== SIDE EFFECTS TO IMPLEMENT ====================
+  // Hook #1: Initial Data Loading (run once on mount)
+  useEffect(() => {
+    // Load perks immediately when the component mounts
+    loadAllPerks()
+    // Note: we intentionally do NOT add loadAllPerks to the deps array
+    // to avoid re-running when the function reference changes.
+  }, [])
+
+  // Hook #2: Auto-search on input change with debounce
+  // We skip the very first run so the initial load (above) is the one
+  // that fetches data on mount and the auto-search only runs on subsequent changes.
+  const _isFirstAutoSearch = useRef(true)
+  useEffect(() => {
+    if (_isFirstAutoSearch.current) {
+      // Skip the first automatic effect run on mount
+      _isFirstAutoSearch.current = false
+      return
+    }
+
+    // Debounce the search to avoid firing requests on every keystroke
+    const id = setTimeout(() => {
+      loadAllPerks()
+    }, 500) // 500ms debounce
+
+    return () => clearTimeout(id)
+  }, [searchQuery, merchantFilter])
 
   // ==================== EVENT HANDLERS ====================
 
@@ -136,7 +163,8 @@ export default function AllPerks() {
                 type="text"
                 className="input"
                 placeholder="Enter perk name..."
-                
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
               />
               <p className="text-xs text-zinc-500 mt-1">
                 Auto-searches as you type, or press Enter / click Search
@@ -151,7 +179,8 @@ export default function AllPerks() {
               </label>
               <select
                 className="input"
-                
+                value={merchantFilter}
+                onChange={e => setMerchantFilter(e.target.value)}
               >
                 <option value="">All Merchants</option>
                 
@@ -214,10 +243,9 @@ export default function AllPerks() {
           - If perks.length === 0: Show empty state (after the map)
         */}
         {perks.map(perk => (
-          
           <Link
             key={perk._id}
-           
+            to={`/perks/${perk._id}`}
             className="card hover:shadow-lg transition-shadow cursor-pointer"
           >
             {/* Perk Title */}
